@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>간단 메모장</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 flex flex-col items-center">
+    <div class="w-full max-w-2xl mt-10 bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-blue-600 p-4 text-white">
+            <h1 class="text-2xl font-bold text-center">내 메모장</h1>
+        </div>
+        
+        <div class="p-6">
+            <div class="relative">
+                <textarea 
+                    id="memoInput" 
+                    maxlength="300" 
+                    class="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition duration-200"
+                    placeholder="여기에 메모를 작성하세요..."
+                ></textarea>
+                <div class="absolute bottom-3 right-3 text-sm text-gray-500 font-medium">
+                    <span id="charCount">0</span>/300
+                </div>
+            </div>
+            
+            <button 
+                id="saveBtn" 
+                class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow transition-colors duration-200"
+            >
+                메모 저장하기
+            </button>
+        </div>
+    </div>
+
+    <div class="w-full max-w-2xl mt-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4 px-2">저장된 메모</h2>
+        <div id="memoList" class="space-y-4">
+            <!-- 메모 아이템들이 여기에 추가됩니다 -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const memoInput = document.getElementById('memoInput');
+            const charCount = document.getElementById('charCount');
+            const saveBtn = document.getElementById('saveBtn');
+            const memoList = document.getElementById('memoList');
+
+            // 로컬 스토리지에서 메모 불러오기
+            const loadMemos = () => {
+                const storedMemos = localStorage.getItem('memos');
+                return storedMemos ? JSON.parse(storedMemos) : [];
+            };
+
+            // 메모 렌더링
+            const renderMemos = () => {
+                const memos = loadMemos();
+                memoList.innerHTML = '';
+                
+                if (memos.length === 0) {
+                    memoList.innerHTML = '<p class="text-center text-gray-500 py-6 font-medium">저장된 메모가 없습니다.</p>';
+                    return;
+                }
+
+                memos.forEach((memo, index) => {
+                    const date = new Date(memo.timestamp).toLocaleString('ko-KR');
+                    
+                    const memoEl = document.createElement('div');
+                    memoEl.className = 'bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative group transition-all hover:shadow-md';
+                    memoEl.innerHTML = `
+                        <p class="text-gray-800 whitespace-pre-wrap mb-3">${escapeHtml(memo.text)}</p>
+                        <div class="flex justify-between items-center text-xs text-gray-400">
+                            <span>${date}</span>
+                            <button onclick="deleteMemo(${index})" class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+                                삭제
+                            </button>
+                        </div>
+                    `;
+                    memoList.appendChild(memoEl);
+                });
+            };
+
+            // HTML 이스케이프 함수 (XSS 방지)
+            const escapeHtml = (unsafe) => {
+                return unsafe
+                     .replace(/&/g, "&amp;")
+                     .replace(/</g, "&lt;")
+                     .replace(/>/g, "&gt;")
+                     .replace(/"/g, "&quot;")
+                     .replace(/'/g, "&#039;");
+            };
+
+            // 글자 수 업데이트
+            memoInput.addEventListener('input', (e) => {
+                const length = e.target.value.length;
+                charCount.textContent = length;
+                if (length >= 300) {
+                    charCount.classList.add('text-red-500');
+                } else {
+                    charCount.classList.remove('text-red-500');
+                }
+            });
+
+            // 메모 저장
+            saveBtn.addEventListener('click', () => {
+                const text = memoInput.value.trim();
+                
+                if (!text) {
+                    alert('메모 내용을 입력해주세요.');
+                    return;
+                }
+
+                if (text.length > 300) {
+                    alert('메모는 300자까지만 입력 가능합니다.');
+                    return;
+                }
+
+                const newMemo = {
+                    text: text,
+                    timestamp: new Date().getTime()
+                };
+
+                const memos = loadMemos();
+                memos.unshift(newMemo); // 최신 메모를 맨 앞에
+                
+                localStorage.setItem('memos', JSON.stringify(memos));
+                
+                // 초기화
+                memoInput.value = '';
+                charCount.textContent = '0';
+                charCount.classList.remove('text-red-500');
+                
+                renderMemos();
+            });
+
+            // 전역 스코프에 삭제 함수 노출
+            window.deleteMemo = (index) => {
+                if (confirm('이 메모를 삭제하시겠습니까?')) {
+                    const memos = loadMemos();
+                    memos.splice(index, 1);
+                    localStorage.setItem('memos', JSON.stringify(memos));
+                    renderMemos();
+                }
+            };
+
+            // 초기 렌더링
+            renderMemos();
+        });
+    </script>
+</body>
+</html>
